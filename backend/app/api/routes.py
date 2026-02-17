@@ -10,6 +10,7 @@ from backend.app.models.schemas import (
     SafeRoute,
     WeatherData,
 )
+from backend.app.services.dem_service import estimate_flood_extent
 from backend.app.services.flood_service import (
     COLOMBIA_MONITORING_POINTS,
     get_active_alerts,
@@ -96,6 +97,20 @@ async def alerts():
         return await get_active_alerts()
     except Exception as e:
         raise HTTPException(status_code=502, detail=f"Alert generation error: {e}")
+
+
+@router.get("/flood/extent")
+async def flood_extent(
+    lat: float = Query(..., ge=-90, le=90),
+    lon: float = Query(..., ge=-180, le=180),
+    water_rise_m: float = Query(..., ge=0, le=50, description="Water level rise in meters"),
+    radius_km: float = Query(5.0, ge=0.5, le=50, description="Search radius in km"),
+):
+    """Estimate flood extent around a river point using DEM data."""
+    try:
+        return estimate_flood_extent(lat, lon, water_rise_m, radius_km)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Flood extent error: {e}")
 
 
 @router.get("/stations", response_model=list[MonitoringStation])

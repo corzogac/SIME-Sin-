@@ -9,6 +9,9 @@ class Settings(BaseSettings):
     port: int = 8000
     debug: bool = False
 
+    # Database (PostgreSQL+PostGIS recommended, SQLite for dev)
+    database_url: str = "sqlite+aiosqlite:///./data/sime.db"
+
     # Open-Meteo
     open_meteo_base_url: str = "https://api.open-meteo.com/v1"
     open_meteo_flood_url: str = "https://flood-api.open-meteo.com/v1/flood"

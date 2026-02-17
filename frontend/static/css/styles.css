@@ -278,6 +278,71 @@ body {
     padding: 0.5rem;
 }
 
+/* WebSocket status indicator */
+.ws-status {
+    font-size: 0.65rem;
+    font-weight: 700;
+    letter-spacing: 1px;
+    padding: 0.2rem 0.5rem;
+    border-radius: 3px;
+    background: #555;
+    color: #ccc;
+}
+
+.ws-connected {
+    background: #1b5e20;
+    color: #4caf50;
+    animation: pulse-live 2s infinite;
+}
+
+@keyframes pulse-live {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.6; }
+}
+
+/* Toast notifications for real-time alerts */
+.toast-alert {
+    position: fixed;
+    top: 60px;
+    right: 20px;
+    z-index: 10000;
+    padding: 1rem 1.4rem;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    max-width: 360px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+    animation: slide-in 0.3s ease-out, fade-out 0.5s 9.5s forwards;
+    cursor: pointer;
+}
+
+.toast-high {
+    background: #e65100;
+    color: #fff;
+    border-left: 5px solid #ff9800;
+}
+
+.toast-very_high {
+    background: #b71c1c;
+    color: #fff;
+    border-left: 5px solid #f44336;
+}
+
+.toast-extreme {
+    background: #880e0e;
+    color: #fff;
+    border-left: 5px solid #ff1744;
+    animation: slide-in 0.3s ease-out, pulse-alert 1s infinite;
+}
+
+@keyframes slide-in {
+    from { transform: translateX(100%); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
+}
+
+@keyframes fade-out {
+    to { opacity: 0; }
+}
+
 /* Responsive */
 @media (max-width: 768px) {
     .main-container {

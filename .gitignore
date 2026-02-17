@@ -32,6 +32,7 @@ data/*.tiff
 data/*.nc
 data/*.hdf
 data/*.csv
+data/*.db
 data/dem/
 
 # Logs

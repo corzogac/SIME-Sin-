@@ -1,10 +1,12 @@
 /**
  * SIME Application Controller
- * Coordinates API calls and UI updates for the flood dashboard.
+ * Coordinates API calls, WebSocket connections, and UI updates.
  */
 
 const SIME_APP = (() => {
     const API_BASE = '/api/v1';
+    let ws = null;
+    let wsReconnectTimer = null;
 
     async function fetchJSON(url) {
         const response = await fetch(url);
@@ -12,6 +14,93 @@ const SIME_APP = (() => {
             throw new Error(`API error: ${response.status} ${response.statusText}`);
         }
         return response.json();
+    }
+
+    // --- WebSocket for real-time alerts ---
+    function connectWebSocket() {
+        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const wsUrl = `${protocol}//${window.location.host}/ws/alerts`;
+
+        ws = new WebSocket(wsUrl);
+
+        ws.onopen = () => {
+            console.log('WebSocket connected');
+            const indicator = document.getElementById('ws-status');
+            if (indicator) {
+                indicator.textContent = 'EN VIVO';
+                indicator.classList.add('ws-connected');
+            }
+        };
+
+        ws.onmessage = (event) => {
+            try {
+                const msg = JSON.parse(event.data);
+                handleWSMessage(msg);
+            } catch (err) {
+                console.error('WebSocket message parse error:', err);
+            }
+        };
+
+        ws.onclose = () => {
+            console.log('WebSocket disconnected, reconnecting in 5s...');
+            const indicator = document.getElementById('ws-status');
+            if (indicator) {
+                indicator.textContent = 'DESCONECTADO';
+                indicator.classList.remove('ws-connected');
+            }
+            wsReconnectTimer = setTimeout(connectWebSocket, 5000);
+        };
+
+        ws.onerror = (err) => {
+            console.error('WebSocket error:', err);
+        };
+
+        // Keep-alive ping every 30s
+        setInterval(() => {
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                ws.send('ping');
+            }
+        }, 30000);
+    }
+
+    function handleWSMessage(msg) {
+        switch (msg.type) {
+            case 'alert':
+                showRealtimeAlert(msg.data);
+                break;
+            case 'flood_update':
+                updateFloodZonesFromWS(msg.data);
+                break;
+            case 'connected':
+                console.log('SIME real-time:', msg.message);
+                break;
+        }
+    }
+
+    function showRealtimeAlert(alertData) {
+        // Show a toast notification for real-time alerts
+        const toast = document.createElement('div');
+        toast.className = `toast-alert toast-${alertData.risk_level}`;
+        toast.innerHTML = `
+            <strong>${alertData.name}</strong><br/>
+            <span>${alertData.message}</span>
+        `;
+        document.body.appendChild(toast);
+
+        // Auto-remove after 10 seconds
+        setTimeout(() => toast.remove(), 10000);
+
+        // Also refresh the alerts sidebar
+        loadAlerts();
+    }
+
+    function updateFloodZonesFromWS(zonesData) {
+        SIME_MAP.clearFloodZones();
+        zonesData.forEach(zone => SIME_MAP.addFloodZone(zone));
+
+        const now = new Date();
+        document.getElementById('last-update').textContent =
+            `Ultima actualizacion: ${now.toLocaleTimeString('es-CO')}`;
     }
 
     // --- Flood zones ---
@@ -163,7 +252,10 @@ const SIME_APP = (() => {
         // Initial data load
         refreshAll();
 
-        // Auto-refresh every 15 minutes
+        // Connect WebSocket for real-time updates
+        connectWebSocket();
+
+        // Fallback: auto-refresh every 15 minutes if WebSocket fails
         setInterval(refreshAll, 15 * 60 * 1000);
     }
 

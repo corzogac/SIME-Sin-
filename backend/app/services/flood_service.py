@@ -1,4 +1,10 @@
-"""Service for flood risk assessment using GloFAS data and terrain analysis."""
+"""Service for flood risk assessment using GloFAS data, precipitation, and terrain.
+
+Combines three data sources for comprehensive flood risk:
+1. GloFAS river discharge forecasts (Open-Meteo Flood API)
+2. Precipitation forecasts (Open-Meteo Weather API)
+3. DEM-based flood extent estimation (when DEM tiles are available)
+"""
 
 from datetime import datetime, timezone
 from uuid import uuid4
@@ -15,6 +21,7 @@ from backend.app.models.schemas import (
     FloodZone,
     RiskLevel,
 )
+from backend.app.services.dem_service import discharge_to_water_rise, estimate_flood_extent
 
 _flood_cache: TTLCache = TTLCache(maxsize=200, ttl=settings.flood_cache_ttl)
 
@@ -78,8 +85,57 @@ async def get_river_discharge_forecast(lat: float, lon: float, days: int = 7) ->
     return data
 
 
+async def get_precipitation_risk(lat: float, lon: float) -> tuple[RiskLevel, float]:
+    """Assess flood risk from accumulated precipitation forecasts.
+
+    Fetches 72h precipitation forecast and evaluates accumulated risk.
+    Returns (risk_level, total_precip_mm).
+    """
+    from backend.app.services.weather_service import get_precipitation_forecast
+
+    try:
+        forecasts = await get_precipitation_forecast(lat, lon, days=3)
+        total_mm = sum(
+            f.get("precipitation_mm", 0) or 0
+            for f in forecasts
+        )
+        # 72h accumulated precipitation thresholds for Colombia
+        if total_mm < 20:
+            return RiskLevel.LOW, total_mm
+        if total_mm < 50:
+            return RiskLevel.MODERATE, total_mm
+        if total_mm < 100:
+            return RiskLevel.HIGH, total_mm
+        if total_mm < 200:
+            return RiskLevel.VERY_HIGH, total_mm
+        return RiskLevel.EXTREME, total_mm
+    except Exception as e:
+        logger.warning(f"Precipitation risk check failed for ({lat}, {lon}): {e}")
+        return RiskLevel.LOW, 0.0
+
+
+def _combine_risks(discharge_risk: RiskLevel, precip_risk: RiskLevel) -> RiskLevel:
+    """Combine discharge and precipitation risks, taking the worse of the two
+    but also escalating when both indicate elevated risk."""
+    order = [RiskLevel.LOW, RiskLevel.MODERATE, RiskLevel.HIGH, RiskLevel.VERY_HIGH, RiskLevel.EXTREME]
+    d_idx = order.index(discharge_risk)
+    p_idx = order.index(precip_risk)
+
+    base = max(d_idx, p_idx)
+
+    # If both sources indicate at least moderate risk, escalate by one level
+    if d_idx >= 1 and p_idx >= 1:
+        base = min(base + 1, len(order) - 1)
+
+    return order[base]
+
+
 async def get_current_flood_zones() -> list[FloodZone]:
-    """Assess current flood risk across Colombian monitoring points."""
+    """Assess current flood risk across Colombian monitoring points.
+
+    Combines river discharge data with precipitation forecasts and,
+    when available, DEM-based flood extent estimation.
+    """
     zones = []
 
     for lat, lon, name, river in COLOMBIA_MONITORING_POINTS:
@@ -87,24 +143,41 @@ async def get_current_flood_zones() -> list[FloodZone]:
             data = await get_river_discharge_forecast(lat, lon, days=3)
             daily = data.get("daily", {})
             discharges = daily.get("river_discharge", [])
-            dates = daily.get("time", [])
 
             if not discharges:
                 continue
 
             current_discharge = discharges[0] if discharges[0] is not None else 0
-            # Use the mean of the full series as a rough median proxy
             valid = [d for d in discharges if d is not None]
             median_proxy = sum(valid) / len(valid) if valid else 1
 
-            risk = _classify_discharge_risk(current_discharge, median_proxy)
+            discharge_risk = _classify_discharge_risk(current_discharge, median_proxy)
+
+            # Also check precipitation forecasts
+            precip_risk, total_precip = await get_precipitation_risk(lat, lon)
+
+            # Combined risk assessment
+            combined_risk = _combine_risks(discharge_risk, precip_risk)
+
+            # Attempt DEM-based depth estimation
+            estimated_depth = None
+            flood_coords = [Coordinates(lat=lat, lon=lon)]
+            water_rise = discharge_to_water_rise(current_discharge, median_proxy)
+            if water_rise > 0:
+                estimated_depth = round(water_rise, 2)
+                try:
+                    extent = estimate_flood_extent(lat, lon, water_rise)
+                    if extent.get("boundary_coordinates"):
+                        flood_coords = extent["boundary_coordinates"]
+                except Exception as e:
+                    logger.debug(f"DEM extent estimation unavailable for {name}: {e}")
 
             zone = FloodZone(
                 zone_id=f"zone-{name.lower().replace(' ', '-')}",
                 name=f"{name} - Rio {river}",
-                risk_level=risk,
-                coordinates=[Coordinates(lat=lat, lon=lon)],
-                estimated_depth_m=None,
+                risk_level=combined_risk,
+                coordinates=flood_coords,
+                estimated_depth_m=estimated_depth,
                 river_discharge_m3s=current_discharge,
                 timestamp=datetime.now(timezone.utc),
             )

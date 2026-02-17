@@ -1,9 +1,15 @@
 # Web framework
 fastapi==0.115.6
 uvicorn[standard]==0.34.0
+websockets==14.1
 
 # HTTP client for external APIs
 httpx==0.28.1
+
+# Database
+sqlalchemy[asyncio]==2.0.36
+aiosqlite==0.20.0
+asyncpg==0.30.0
 
 # Geospatial
 rasterio==1.4.3
