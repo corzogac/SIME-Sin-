@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SIME - Sistema de Informacion para Manejo de Emergencias</title>
+
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+
+    <!-- App CSS -->
+    <link rel="stylesheet" href="/static/css/styles.css">
+</head>
+<body>
+    <header class="header">
+        <div class="header-left">
+            <h1>SIME</h1>
+            <span class="subtitle">Sistema de Informacion para Manejo de Emergencias - Colombia</span>
+        </div>
+        <div class="header-right">
+            <span id="last-update" class="update-time">Actualizando...</span>
+            <button id="btn-refresh" class="btn btn-primary" title="Actualizar datos">Actualizar</button>
+        </div>
+    </header>
+
+    <main class="main-container">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <!-- Alerts panel -->
+            <section class="panel">
+                <h2 class="panel-title">Alertas Activas</h2>
+                <div id="alerts-list" class="alerts-list">
+                    <p class="loading">Cargando alertas...</p>
+                </div>
+            </section>
+
+            <!-- Risk legend -->
+            <section class="panel">
+                <h2 class="panel-title">Niveles de Riesgo</h2>
+                <div class="legend">
+                    <div class="legend-item"><span class="dot dot-low"></span> Bajo</div>
+                    <div class="legend-item"><span class="dot dot-moderate"></span> Moderado</div>
+                    <div class="legend-item"><span class="dot dot-high"></span> Alto</div>
+                    <div class="legend-item"><span class="dot dot-very-high"></span> Muy Alto</div>
+                    <div class="legend-item"><span class="dot dot-extreme"></span> Extremo</div>
+                </div>
+            </section>
+
+            <!-- Route planner -->
+            <section class="panel">
+                <h2 class="panel-title">Ruta Segura</h2>
+                <div class="route-form">
+                    <label>Origen (lat, lon):</label>
+                    <input type="text" id="route-origin" placeholder="4.71, -74.07" />
+                    <label>Destino (lat, lon):</label>
+                    <input type="text" id="route-dest" placeholder="3.45, -76.52" />
+                    <button id="btn-route" class="btn btn-secondary">Calcular Ruta</button>
+                </div>
+                <div id="route-info" class="route-info hidden"></div>
+            </section>
+
+            <!-- Stations -->
+            <section class="panel">
+                <h2 class="panel-title">Estaciones de Monitoreo</h2>
+                <div id="stations-list" class="stations-list">
+                    <p class="loading">Cargando estaciones...</p>
+                </div>
+            </section>
+        </aside>
+
+        <!-- Map -->
+        <div class="map-container">
+            <div id="map"></div>
+        </div>
+    </main>
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <!-- App JS -->
+    <script src="/static/js/map.js"></script>
+    <script src="/static/js/app.js"></script>
+</body>
+</html>

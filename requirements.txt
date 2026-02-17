@@ -1,0 +1,38 @@
+# Web framework
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+
+# HTTP client for external APIs
+httpx==0.28.1
+
+# Geospatial
+rasterio==1.4.3
+geopandas==1.0.1
+shapely==2.0.6
+pyproj==3.7.0
+networkx==3.4.2
+
+# Data processing
+numpy==2.2.1
+pandas==2.2.3
+
+# Routing / pathfinding
+scikit-image==0.25.0
+
+# Caching
+cachetools==5.5.1
+
+# Configuration
+python-dotenv==1.0.1
+pydantic==2.10.4
+pydantic-settings==2.7.1
+
+# Templates
+jinja2==3.1.5
+
+# Testing
+pytest==8.3.4
+pytest-asyncio==0.25.0
+
+# Logging
+loguru==0.7.3
